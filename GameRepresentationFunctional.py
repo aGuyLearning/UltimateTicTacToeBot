@@ -393,10 +393,8 @@ def flip_arr(arr):
     for perm in range(len(SYMMETRY_INDICES)):
         internal_rows = []
         for row in range(len(arr)//9):
-        for row in range(len(arr)//9):
             new_row = [0] * 9
             for i in range(9):
-                new_row[SYMMETRY_INDICES[perm][i]] = arr[9*row + i]
                 new_row[SYMMETRY_INDICES[perm][i]] = arr[9*row + i]
             internal_rows.append(new_row)
         internal_flipped.append(internal_rows)
