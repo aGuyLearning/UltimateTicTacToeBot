@@ -1,6 +1,9 @@
+import copy
 import logging
 
 from tqdm import tqdm
+
+import GameRepresentationFunctional
 
 
 class Arena():
@@ -8,7 +11,7 @@ class Arena():
     An Arena class where any 2 agents can be pit against each other.
     """
 
-    def __init__(self, player1, player2, game, display=None):
+    def __init__(self, player1, player2, display=None):
         """
         Input:
             player 1,2: two functions that takes board as input, return action
@@ -22,7 +25,6 @@ class Arena():
         """
         self.player1 = player1
         self.player2 = player2
-        self.game = game
         self.display = display
 
     def playGame(self, verbose=False):
@@ -37,44 +39,25 @@ class Arena():
         """
         players = [self.player2, None, self.player1]
         curPlayer = 1
-        board = self.game.getInitBoard()
+        board = copy.deepcopy(GameRepresentationFunctional.INITIAL_STATE)
         it = 0
 
-        for player in players[0], players[2]:
-            if hasattr(player, "startGame"):
-                player.startGame()
 
-        while self.game.getGameEnded(board, curPlayer) == 0:
+        while board[-1] == None:
             it += 1
-            if verbose:
-                assert self.display
-                print("Turn ", str(it), "Player ", str(curPlayer))
-                self.display(board)
-            action = players[curPlayer + 1](self.game.getCanonicalForm(board, curPlayer))
+            action = players[curPlayer + 1](copy.deepcopy(board))
 
-            valids = self.game.getValidMoves(self.game.getCanonicalForm(board, curPlayer), 1)
+            valids = GameRepresentationFunctional.getPossibleMoves(*board)
 
             if valids[action] == 0:
-                log.error(f'Action {action} is not valid!')
-                log.debug(f'valids = {valids}')
+                print(f'Action {action} is not valid!')
+                print(f'valids = {valids}')
                 assert valids[action] > 0
 
-            # Notifying the opponent for the move
-            opponent = players[-curPlayer + 1]
-            if hasattr(opponent, "notify"):
-                opponent.notify(board, action)
+            board = GameRepresentationFunctional.move(*copy.deepcopy(board), *valids[action])
 
-            board, curPlayer = self.game.getNextState(board, curPlayer, action)
 
-        for player in players[0], players[2]:
-            if hasattr(player, "endGame"):
-                player.endGame()
-
-        if verbose:
-            assert self.display
-            print("Game over: Turn ", str(it), "Result ", str(self.game.getGameEnded(board, 1)))
-            self.display(board)
-        return curPlayer * self.game.getGameEnded(board, curPlayer)
+        return curPlayer * board[-1]  # 1 if player1 wins, -1 if player2 wins, 0 if draw
 
     def playGames(self, num, verbose=False):
         """
