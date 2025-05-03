@@ -75,8 +75,7 @@ class UltimateTTTNet(nn.Module):
             # Convert valid moves to mask
             mask = torch.zeros(81, dtype=torch.bool)
             for move in valid_moves:
-                x_pos, y_pos = move
-                mask[y_pos*9 + x_pos] = True
+                mask[move] = True
             
             # Add batch dimension
             mask = mask.unsqueeze(0)
@@ -112,7 +111,7 @@ class UltimateTTTNet(nn.Module):
         return torch.sum((targets - outputs.view(-1)) ** 2) / targets.size()[0]
 def state_to_tensor(state):
     """Convert game state to network input tensor"""
-    global_state_x, global_state_o, local_state_x, local_state_o, current_player, current_board, winner = state
+    global_state_x, global_state_o, board_x, board_o, current_player, current_board, winner = state
     
     # Create input planes
     batch_size = 1
@@ -122,14 +121,14 @@ def state_to_tensor(state):
     for board in range(9):
         for y in range(3):
             for x in range(3):
-                if local_state_x[board] & (1 << (y*3 + x)):
+                if board_x & (1 << (y*3 + x + board*9)):
                     planes[0, 0, (board//3)*3 + y, (board%3)*3 + x] = 1
     
     # Plane 1: O positions on all boards
     for board in range(9):
         for y in range(3):
             for x in range(3):
-                if local_state_o[board] & (1 << (y*3 + x)):
+                if board_o & (1 << (y*3 + x + board*9)):
                     planes[0, 1, (board//3)*3 + y, (board%3)*3 + x] = 1
     
     # Plane 2: Current active boards

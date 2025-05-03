@@ -37,7 +37,7 @@ class MCTSNodeLess():
                    proportional to Nsa[(s,a)]**(1./temp)
         """
         for i in range(self.numMCTSSims):
-            self.search(copy.deepcopy(canonicalBoard))
+            self.search(canonicalBoard)
 
         s = GameRepresentationFunctional.zobrist(*canonicalBoard)
     
@@ -118,7 +118,7 @@ class MCTSNodeLess():
                     best_act = a
 
         a = best_act
-        next_s = GameRepresentationFunctional.move(*(copy.deepcopy(canonicalBoard)), *valids[a])
+        next_s = GameRepresentationFunctional.move(*canonicalBoard, valids[a])
 
         v = self.search(next_s)
 

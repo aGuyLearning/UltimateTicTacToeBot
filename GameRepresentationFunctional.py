@@ -204,12 +204,12 @@ def zobrist(global_state_x, global_state_o, board_x, board_o, currentPlayer, cur
 
     for pos in range(81):
         if board_x & (1 << pos):
-            h ^= ZOBRIST_TABLE["squares"][0]
+            h ^= ZOBRIST_TABLE["squares"][pos][0]
     
     # Hash O's pieces on this local board
     for pos in range(81):
         if board_o & (1 << pos):
-            h ^= ZOBRIST_TABLE["squares"][1]
+            h ^= ZOBRIST_TABLE["squares"][pos][1]
     
 
     # Hash the global boards (won boards)
@@ -236,56 +236,54 @@ def zobrist(global_state_x, global_state_o, board_x, board_o, currentPlayer, cur
 
 
 
-def move(global_state_x, global_state_o, local_state_x, local_state_o, currentPlayer, currentBoard, winner, global_x, global_y):
-    board = (global_y // 3) * 3 + (global_x // 3)
-    local_x = global_x % 3
-    local_y = global_y % 3
-    board_name = local_state_x if currentPlayer else local_state_o
+def move(global_board_x, global_board_o, board_x, board_o, currentPlayer, next_move_board_idx, winner, move):
+        
+    if (checkValidMove(global_board_x, global_board_o, board_x, board_o, next_move_board_idx, move)):
+        board_idx = move // 9
 
-    if not checkValidMove(global_state_x, global_state_o, local_state_x, local_state_o, currentBoard, board, local_x, local_y):
-        return None
-
-    # Update the local board
-    board_name[board] |= (1 << (local_y * 3 + local_x))
-
-    # Check if the current player won the local board
-    if checkWin(board_name[board]):
         if currentPlayer:
-            global_state_x |= (1 << board)
-            if checkWin(global_state_x & ~global_state_o):
-                winner = 1
-                return (global_state_x, global_state_o, local_state_x, local_state_o, currentPlayer, currentBoard, winner)
+            board_x |= (1 << move)
+            if checkWin(board_x, board_idx):
+                global_board_x |= (1 << board_idx)
+                if checkWin(global_board_x & ~global_board_o):
+                    winner = 1
+                    return (global_board_x, global_board_o, board_x, board_o, currentPlayer, next_move_board_idx, winner)                   
+                elif checkDraw(global_board_x, global_board_o):
+                    winner = 0
+                    return (global_board_x, global_board_o, board_x, board_o, currentPlayer, next_move_board_idx, winner) 
         else:
-            global_state_o |= (1 << board)
-            if checkWin(global_state_o & ~global_state_x):
-                winner = -1
-                return (global_state_x, global_state_o, local_state_x, local_state_o, currentPlayer, currentBoard, winner)
-
-    # Check if the local board is a draw (full but no winner)
-    if checkDraw(local_state_x[board], local_state_o[board]):
-        global_state_x |= (1 << board)
-        global_state_o |= (1 << board)
-
-    # Check if the game is a draw (all local boards are won or drawn)
-    if checkDraw(global_state_x, global_state_o):
-        winner = 0
-        return (global_state_x, global_state_o, local_state_x, local_state_o, currentPlayer, currentBoard, winner)
-
-    # Determine the next board
-    currentBoard = local_x + local_y * 3
-    if isNotPlayableBoard(global_state_x, global_state_o, currentBoard):
-        currentBoard = 9  # Free choice
-
-    # Switch player
-    return (global_state_x, global_state_o, local_state_x, local_state_o, not currentPlayer, currentBoard, winner)
+            board_o |= (1 << move)
+            if checkWin(board_x, board_idx):
+                global_board_o |= (1 << board_idx)
+                if checkWin(global_board_o & ~global_board_x):
+                    winner = -1
+                    return (global_board_x, global_board_o, board_x, board_o, currentPlayer, next_move_board_idx, winner)
+                elif checkDraw(global_board_x, global_board_o):
+                    winner = 0
+                    return (global_board_x, global_board_o, board_x, board_o, currentPlayer, next_move_board_idx, winner)
+                
+        if checkDraw(board_x, board_o, board_idx):
+            global_board_x |= (1 << board_idx)
+            global_board_o |= (1 << board_idx)
+            if checkDraw(global_board_x, global_board_o):
+                winner = 0
+                return (global_board_x, global_board_o, board_x, board_o, currentPlayer, next_move_board_idx, winner)
+            
+        next_move_board_idx = move % 9
+        if isNotPlayableBoard(global_board_x, global_board_o, next_move_board_idx):
+            next_move_board_idx = 9
+        
+        return (global_board_x, global_board_o, board_x, board_o, not currentPlayer, next_move_board_idx, winner)
+    return None
         
 ### local functions:
-def checkWin(board):
+def checkWin(board, board_idx = 0):
     for mask in WIN_MASKS:
         mask = mask << (board_idx * 9)
         if (board & mask) == mask:
             return True
     return False
+
 
 def checkDraw(board_x, board_o, board_idx = 0):
     # check if all local boards are full
@@ -334,7 +332,7 @@ def getPossibleMoves(global_board_x, global_board_o, baord_x, board_o, currentPl
                 continue
 
             for i in range(9):
-                if not (board_mask & (move_mask << i)):
+                if not (board_mask & (move_mask << (i + block * 9))):
                     possible_moves.append(i + block * 9)
     else:
         if isNotPlayableBoard(global_board_x, global_board_o, next_move_board_idx):
@@ -394,20 +392,24 @@ def flip_arr(arr):
     internal_flipped = []
     for perm in range(len(SYMMETRY_INDICES)):
         internal_rows = []
-        for row in arr:
+        for row in range(len(arr)//9):
             new_row = [0] * 9
             for i in range(9):
-                new_row[SYMMETRY_INDICES[perm][i]] = row[i]
+                new_row[SYMMETRY_INDICES[perm][i]] = arr[9*row + i]
             internal_rows.append(new_row)
         internal_flipped.append(internal_rows)
     # outer flipping
+    res = []
     new_arr = [[0] * 9 for _ in range(8)]
     for perm in range(len(SYMMETRY_INDICES)):
         for i in range(9):
             print(f"sym no.: {perm}, small square: {i}, mapping to: {SYMMETRY_INDICES[perm][i]}")
             new_arr[perm][SYMMETRY_INDICES[perm][i]] = internal_flipped[perm][i]
-
-    return new_arr
+        res.append(sum(new_arr[perm],[]))
+        print(new_arr[perm])
+        print(res[perm])
+        print()
+    return res
         
 
         
@@ -457,7 +459,6 @@ def stringRep(global_baord_x, global_board_o, board_x, board_o, currentPlayer, n
 
     board += "\n"
     return board
-        
 
 if __name__ == "__main__":
     arr = [
