@@ -253,7 +253,7 @@ def move(global_board_x, global_board_o, board_x, board_o, currentPlayer, next_m
                     return (global_board_x, global_board_o, board_x, board_o, currentPlayer, next_move_board_idx, winner) 
         else:
             board_o |= (1 << move)
-            if checkWin(board_x, board_idx):
+            if checkWin(board_o, board_idx):
                 global_board_o |= (1 << board_idx)
                 if checkWin(global_board_o & ~global_board_x):
                     winner = -1
