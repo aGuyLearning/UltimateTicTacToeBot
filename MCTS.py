@@ -21,13 +21,13 @@ class MCTSNode:
     
     def is_terminal(self):
         """Check if the node represents a terminal state"""
-        return self.state[-1] != None 
+        return self.state[-1] != GameRepresentation.Status.RUNNING
         
     def expand(self):
         """Expand a node by creating a new child"""
         action = self.untried_actions.pop()
         next_state = copy.deepcopy(self.state)
-        next_state = GameRepresentation.move(*next_state, *action) 
+        next_state = GameRepresentation.move(*next_state, action) 
         child_node = MCTSNode(next_state, parent=self)
         child_node.action = action
         self.children.append(child_node)
@@ -57,7 +57,7 @@ class MCTSNode:
             action = random.choice(action)
             #action = sorted(action, key=lambda m: self.move_priority(m))
             #action = action[0]
-            current_state = GameRepresentation.move(*current_state, *action)
+            current_state = GameRepresentation.move(*current_state, action)
         return get_reward(current_state)
 
     def move_priority(self, move):
@@ -81,16 +81,16 @@ class MCTSNode:
 def get_reward(state):
     x_turn = state[4]
     if x_turn:
-        if state[-1] == "X":
+        if state[-1] == GameRepresentation.Status.WIN_X:
             return 3
-        elif state[-1] == "O":
+        elif state[-1] == GameRepresentation.Status.WIN_O:
             return 0
         else:
             return 1
     else:
-        if state[-1] == "O":
+        if state[-1] == GameRepresentation.Status.WIN_O:
             return 3
-        elif state[-1] == "X":
+        elif state[-1] == GameRepresentation.Status.WIN_X:
             return 0
         else:
             return 1
