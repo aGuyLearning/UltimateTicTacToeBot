@@ -348,6 +348,74 @@ def getPossibleMoves(global_board_x, global_board_o, baord_x, board_o, currentPl
 
 
 #---------------------------------
+def build_index_maps():
+    sudoku_to_rc = {}
+    rc_to_sudoku = [[0] * 9 for _ in range(9)]
+    idx = 0
+    for box_row in range(3):
+        for box_col in range(3):
+            for cell_row in range(3):
+                for cell_col in range(3):
+                    r = box_row * 3 + cell_row
+                    c = box_col * 3 + cell_col
+                    sudoku_to_rc[idx] = (r, c)
+                    rc_to_sudoku[r][c] = idx
+                    idx += 1
+    return sudoku_to_rc, rc_to_sudoku
+
+SUDOKU_TO_RC, RC_TO_SUDOKU = build_index_maps()
+
+def generate_symmetry_maps_custom():
+    maps = []
+
+    for transform in range(8):
+        mapping = [0] * 81
+        for i in range(81):
+            r, c = SUDOKU_TO_RC[i]
+
+            # Apply geometric symmetry
+            if transform == 0:      # Identity
+                rr, cc = r, c
+            elif transform == 1:    # Rotate 90°
+                rr, cc = c, 8 - r
+            elif transform == 2:    # Rotate 180°
+                rr, cc = 8 - r, 8 - c
+            elif transform == 3:    # Rotate 270°
+                rr, cc = 8 - c, r
+            elif transform == 5:    # Horizontal flip
+                rr, cc = 8 - r, c
+            elif transform == 4:    # Vertical flip
+                rr, cc = r, 8 - c
+            elif transform == 6:    # Diagonal (\)
+                rr, cc = c, r
+            elif transform == 7:    # Diagonal (/)
+                rr, cc = 8 - c, 8 - r
+
+            mapping[i] = RC_TO_SUDOKU[rr][cc]
+        maps.append(mapping)
+    return maps
+
+CUSTOM_SYMMETRY_MAPS = generate_symmetry_maps_custom()
+
+def apply_custom_map(bitboard, mapping):
+    result = 0
+    for src in range(81):
+        if (bitboard >> src) & 1:
+            dst = mapping[src]
+            result |= 1 << dst
+    return result
+
+def get_all_symmetry_variants_custom_layout(bitboard):
+    return [apply_custom_map(bitboard, m) for m in CUSTOM_SYMMETRY_MAPS]
+
+#---------------------------------
+
+
+
+
+
+
+
 def apply_symmetry(bits: int, perm: list[int]) -> int:
     result = 0
     for i, j in enumerate(perm):
@@ -358,34 +426,33 @@ def apply_symmetry(bits: int, perm: list[int]) -> int:
 def generate_all_symmetries(bits: int, map) -> dict[str, int]:
     return [apply_symmetry(bits, perm) for perm in map]
 
-def get_symmetries(global_state_x, global_state_o, local_state_x, local_state_o, currentPlayer, currentBoard, winner):
+def get_symmetries(global_state_x, global_state_o, board_x, board_o, currentPlayer, currentBoard, winner):
     symmetries = []
     
 
-    global_symmetries_x = generate_all_symmetries(global_state_x, SYMMETRY_INDICES) #len = 8
+    global_symmetries_x = generate_all_symmetries(global_state_x, SYMMETRY_INDICES)
     global_symmetries_o = generate_all_symmetries(global_state_o, SYMMETRY_INDICES)
 
-    local_symmetries_x = [generate_all_symmetries(board, LOCAL_SYMMETRY_INDICES) for board in local_state_x]
-    local_symmetries_o = [generate_all_symmetries(board, LOCAL_SYMMETRY_INDICES) for board in local_state_o]
+    local_symmetries_x = get_all_symmetry_variants_custom_layout(board_x)
+    local_symmetries_o = get_all_symmetry_variants_custom_layout(board_o)
 
 
     #for each symmetry
     for i in range(8):
         new_global_state_x = global_symmetries_x[i]
         new_global_state_o = global_symmetries_o[i]
-        new_local_state_x = [0] * 9
-        new_local_state_o = [0] * 9
-
-        #for each local board
-        for j in range(9):
-            new_local_state_x[SYMMETRY_INDICES[i][j]] = local_symmetries_x[j][i]
-            new_local_state_o[SYMMETRY_INDICES[i][j]] = local_symmetries_o[j][i]
-            # new_local_state_o[j] = local_symmetries_o[i][SYMMETRY_INDICES[i][j]]
-
+        new_local_state_x = local_symmetries_x[i]
+        new_local_state_o = local_symmetries_o[i]
         new_currentBoard = 9 if 9 == currentBoard else SYMMETRY_INDICES[i][currentBoard]
+
         symmetries.append((new_global_state_x, new_global_state_o, new_local_state_x, new_local_state_o, currentPlayer, new_currentBoard, winner))
 
     return symmetries
+
+
+
+
+
 
 def flip_arr(arr):
     # inner flipping
@@ -457,38 +524,10 @@ def stringRep(global_baord_x, global_board_o, board_x, board_o, currentPlayer, n
     board += "\n"
     return board
 
+
 if __name__ == "__main__":
-    arr = [
-        1, 0, 0, 0, 0, 0, 0, 0, 0,
-        0, 0, 0, 0, 0, 0, 0, 0, 0,
-        0, 0, 0, 0, 0, 0, 0, 0, 0,
-        0, 0, 0, 0, 0, 0, 0, 0, 0,
-        0, 0, 0, 0, 0, 0, 0, 0, 0,
-        0, 0, 0, 0, 0, 0, 0, 0, 0,
-        0, 0, 0, 0, 0, 0, 0, 0, 0,
-        0, 0, 0, 0, 0, 0, 0, 0, 0,
-        0, 0, 0, 0, 0, 0, 0, 0, 0,
-    ]
-    symmetries_result = flip_arr(arr)
-    for perm in range(8):
-            print(symmetries_result[perm])
-            print()
+    state = INITIAL_STATE
+    symmetries = get_symmetries(*state)
+    for s in symmetries:
+        print(stringRep(*s))
 
-    '''
-    # set start time 
-    start = time.time()
-    for _ in range(10**5):
-        game = copy.deepcopy(INITIAL_STATE)
-        for i in range(100):
-            possible_moves = getPossibleMoves(*game)
-            if len(possible_moves) == 0:
-                # print(f"Game over after {i} moves")
-                break
-            my_move = random.choice(possible_moves)
-            game = move(*game, my_move[0], my_move[1])
-    
-    end = time.time()
-
-    print(f"Time taken: {end - start} seconds")
-    
-    '''
