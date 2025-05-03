@@ -22,6 +22,14 @@ import torch.optim as optim
 
 log = logging.getLogger(__name__)
 
+def get_device():
+    if torch.backends.mps.is_available():
+        return torch.device("mps")
+    elif torch.cuda.is_available():
+        return torch.device("cuda")
+    else:
+        return torch.device("cpu")
+
 
 class Coach():
     """
@@ -29,12 +37,14 @@ class Coach():
     in Game and NeuralNet. args are specified in main.py.
     """
 
-    def __init__(self, nnet, args):
-        self.nnet = nnet
-        self.pnet = self.nnet.__class__()  # the competitor network
+    def __init__(self, nnet, device, args):
+        self.device =device
+        self.nnet = nnet.to(self.device) 
+        print(f"Using device: {self.device}")
+        self.pnet = self.nnet.__class__().to(self.device)  # create a new instance of the neural network
         self.args = args
         self.mcts = MCTSNodeLess(self.nnet, args["numMCTSSims"])
-        self.trainExamplesHistory = []  # history of examples from args.numItersForTrainExamplesHistory latest iterations
+        self.trainExamplesHistory = []  
         self.skipFirstSelfPlay = False  # can be overriden in loadTrainExamples()
 
     def executeEpisode(self):
@@ -64,14 +74,10 @@ class Coach():
 
             pi = self.mcts.getActionProb(copy.deepcopy(board), temp=temp)
             trainExamples.append([state_to_tensor(board), self.curPlayer, pi, None])
-            # sym = GameRepresentationFunctional.get_symmetries(*board) #TODO: get symmetries for pi 
-            # tensor to numpy
-            pi = np.array(pi).tolist()
-            print(f"pi = {pi}")
-            pi_sym = GameRepresentationFunctional.flip_arr(pi)
-            print(f"pi_sym = {pi_sym}")
-            # for b, p in sym:
-            #     trainExamples.append([b, self.curPlayer, p, None])
+            sym = GameRepresentationFunctional.get_symmetries(*board) #TODO: get symmetries for pi 
+            pi_sym = GameRepresentationFunctional.flip_arr(np.array(pi).tolist())
+            for sym_board, sym_pi in zip(sym, pi_sym):
+                trainExamples.append([state_to_tensor(sym_board), self.curPlayer, sym_pi, None])
 
             valid = GameRepresentationFunctional.getPossibleMoves(*board)
             action = np.random.choice(len(pi), p=pi)  # pick an action according to the policy
@@ -192,15 +198,13 @@ class Coach():
                 # remove the batch dimension from boards
 
 
-                boards = torch.stack([b.squeeze(0) for b in boards])
+                boards = torch.stack([b.squeeze(0) for b in boards]).to(self.device)  # Shape: [batch_size, 6, 9, 9]
 
                 # Convert policy and value targets
-                target_pis = torch.FloatTensor(np.array(pis))  # Shape: [batch_size, 81]
-                target_vs = torch.FloatTensor(np.array(vs).astype(np.float64)).unsqueeze(1)  # Shape: [batch_size, 1]
+                target_pis = torch.FloatTensor(np.array(pis)).to(self.device)  # Shape: [batch_size, 9]
+                target_vs = torch.FloatTensor(np.array(vs).astype(np.float64)).unsqueeze(1).to(self.device)  # Shape: [batch_size, 1]
 
-                # predict
-                # if args.cuda:
-                #     boards, target_pis, target_vs = boards.contiguous().cuda(), target_pis.contiguous().cuda(), target_vs.contiguous().cuda()
+
 
                 # compute output
                 out_pi, out_v = nnet(boards)
@@ -234,8 +238,9 @@ if __name__ == "__main__":
         'batch_size': 32,
         'numItersForTrainExamplesHistory': 20,
     }
-    nnet = UltimateTTTNet()
-    coach = Coach(nnet, args, )
+    device = "cpu"
+    nnet = UltimateTTTNet(device=device)
+    coach = Coach(nnet, device, args)
     # nnet.load_checkpoint(folder=args["checkpoint"], filename='checkpoint_2.pth.tar')
     start = time.time()
 

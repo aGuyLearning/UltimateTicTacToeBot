@@ -393,22 +393,21 @@ def flip_arr(arr):
     for perm in range(len(SYMMETRY_INDICES)):
         internal_rows = []
         for row in range(len(arr)//9):
+        for row in range(len(arr)//9):
             new_row = [0] * 9
             for i in range(9):
+                new_row[SYMMETRY_INDICES[perm][i]] = arr[9*row + i]
                 new_row[SYMMETRY_INDICES[perm][i]] = arr[9*row + i]
             internal_rows.append(new_row)
         internal_flipped.append(internal_rows)
     # outer flipping
     res = []
+    res = []
     new_arr = [[0] * 9 for _ in range(8)]
     for perm in range(len(SYMMETRY_INDICES)):
         for i in range(9):
-            print(f"sym no.: {perm}, small square: {i}, mapping to: {SYMMETRY_INDICES[perm][i]}")
             new_arr[perm][SYMMETRY_INDICES[perm][i]] = internal_flipped[perm][i]
         res.append(sum(new_arr[perm],[]))
-        print(new_arr[perm])
-        print(res[perm])
-        print()
     return res
         
 
@@ -462,21 +461,20 @@ def stringRep(global_baord_x, global_board_o, board_x, board_o, currentPlayer, n
 
 if __name__ == "__main__":
     arr = [
-        [1, 0, 0, 0, 0, 0, 0, 0, 0],
-        [0, 0, 0, 0, 0, 0, 0, 0, 0],
-        [0, 0, 0, 0, 0, 0, 0, 0, 0],
-        [0, 0, 0, 0, 0, 0, 0, 0, 0],
-        [0, 0, 0, 0, 0, 0, 0, 0, 0],
-        [0, 0, 0, 0, 0, 0, 0, 0, 0],
-        [0, 0, 0, 0, 0, 0, 0, 0, 0],
-        [0, 0, 0, 0, 0, 0, 0, 0, 0],
-        [0, 0, 0, 0, 0, 0, 0, 0, 0],
+        1, 0, 0, 0, 0, 0, 0, 0, 0,
+        0, 0, 0, 0, 0, 0, 0, 0, 0,
+        0, 0, 0, 0, 0, 0, 0, 0, 0,
+        0, 0, 0, 0, 0, 0, 0, 0, 0,
+        0, 0, 0, 0, 0, 0, 0, 0, 0,
+        0, 0, 0, 0, 0, 0, 0, 0, 0,
+        0, 0, 0, 0, 0, 0, 0, 0, 0,
+        0, 0, 0, 0, 0, 0, 0, 0, 0,
+        0, 0, 0, 0, 0, 0, 0, 0, 0,
     ]
     symmetries_result = flip_arr(arr)
     for perm in range(8):
-        for j in range(9):
-            print(symmetries_result[perm][j])
-        print()
+            print(symmetries_result[perm])
+            print()
 
     '''
     # set start time 

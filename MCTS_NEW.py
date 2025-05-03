@@ -18,6 +18,7 @@ class MCTSNodeLess():
 
     def __init__(self, nnet, numMCTSSims=25):
         self.nnet = nnet
+        self.device = nnet.device
         self.numMCTSSims = numMCTSSims
         self.Qsa = {}  # stores Q values for s,a (as defined in the paper)
         self.Nsa = {}  # stores #times edge s,a was visited
